@@ -53,7 +53,8 @@ class Button(Clickable):
 
 
 class Tile(Clickable):
-    def __init__(self, color: str, position: Tuple):
+    def __init__(self, _id: int, color: str, position: Tuple):
+        self.id = _id
         self.color = color
         self.position = position
         self.img_off = pygame.image.load(os.path.join('assets', 'images', 'tiles', f"{color}.png")).convert_alpha()
@@ -118,6 +119,12 @@ class Menu:
         for button in self.buttons:
             button.draw(win)
 
+class Player:
+    def __init__(self, name: str):
+        self.name = name
+        self.score = 0
+        self.click_count = 0
+
 
 class Game:
 
@@ -125,13 +132,13 @@ class Game:
         pygame.font.init()
         pygame.display.set_caption(caption)
         self.bg_color = (18, 32, 47)
-        self.gen_sequence = []
         self.clock = pygame.time.Clock()
         self.win = pygame.display.set_mode((560, 560))
         self.screen_rect = self.win.get_rect()
-        self.game_state = 0  # 0 -> menu | 1 -> computer is displaying sequence | 2 -> user move | 3 -> game paused
+        self.game_state = 0  # 0 -> menu | 1 -> playing sequence | 2 -> user move | 3 -> game paused | 4 -> game over
         self.click_count = 0
         self.score = 0
+        self.player = Player('Samo')
         self._init_menus()
         self._init_tiles()
 
@@ -147,55 +154,85 @@ class Game:
             self.inputs()
             self.redraw_window()
 
+    def _draw_sequence(self):
+        # generate new number to sequence
+        self._generate()
+        # sequence loop
+        for tile_id in self.tiles['sequence']:
+            # fill window
+            self.win.fill(self.bg_color)
+            # display powered off tiles
+            for tile in self.tiles['tiles']:
+                self.win.blit(tile.img_off, tile.position)
+            pygame.display.update()
+            pygame.time.delay(self.tiles['light_time'])
+            # fill window again
+            self.win.fill(self.bg_color)
+            # display powered on tile and others as off
+            for tile in self.tiles['tiles']:
+                if tile.id != tile_id:
+                    self.win.blit(tile.img_off, tile.position)
+                else:
+                    self.win.blit(tile.img_on, tile.position)
+            pygame.display.update()
+            pygame.time.delay(self.tiles['light_time'])
+            self.tiles['curr_id'] += 1
+        # done playing -> reset
+        if self.tiles['curr_id'] == len(self.tiles['sequence']):
+            self.tiles['curr_id'] = 0
+            self.game_state = 2
+
+    def _draw_user_move(self):
+        self.win.fill(self.bg_color)
+        for tile in self.tiles['tiles']:
+            self.win.blit(tile.img_off, tile.position)
+
     def redraw_window(self):
         if self.game_state == 0:
             self._draw_menu()
-        if self.game_state == 1:
-            self.win.fill(self.bg_color)
-            for tile in self.tiles['tiles']:
-                self.win.blit(tile.img_off, tile.position)
+        elif self.game_state == 1:
+            self._draw_sequence()
+        elif self.game_state == 2:
+            self._draw_user_move()
         pygame.display.update()
 
     def _init_tiles(self):
         self.tiles = {
             "tiles": [
-                Tile("red", (self.screen_rect.width / 2 + 10, 20)),
-                Tile("blue", (self.screen_rect.width / 2 + 10, self.screen_rect.height / 2 + 10)),
-                Tile("yellow", (20, self.screen_rect.height / 2 + 10)),
-                Tile("green", (20, 20)),
+                Tile(1, "red", (self.screen_rect.width / 2 + 10, 20)),
+                Tile(2, "blue", (self.screen_rect.width / 2 + 10, self.screen_rect.height / 2 + 10)),
+                Tile(3, "yellow", (20, self.screen_rect.height / 2 + 10)),
+                Tile(4, "green", (20, 20)),
             ],
             "sequence": [],
-            "light_time": 200
+            "light_time": 400,
+            "curr_id": 0
         }
 
     def _generate(self):
-        self.gen_sequence.append(rnd.randrange(1, 4))
+        self.tiles['sequence'].append(rnd.randrange(1, 4))
 
     def pause(self):
         self.pause_menu.draw(self.win)
 
     def inputs(self):
-        gs = self.game_state
         for e in pygame.event.get():
             if e.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 # if in menu
-                if gs == 0:
+                if self.game_state == 0:
                     for button in self.menu.buttons:
                         if button.mouse_over(mouse_pos):
                             button.click(button.action)
                 # if user can play (sequence not playing)
-                if gs == 2:
+                if self.game_state == 2:
                     for tile in self.tiles['tiles']:
                         if tile.mouse_over(mouse_pos):
                             tile.click(self.check_click, tile)
 
         key = pygame.key.get_pressed()
         if key[pygame.K_ESCAPE]:
-            if gs == 1 or gs == 2:
-                self.game_state = 0
-            if gs == 3:
-                self.game_state = 2
+            pass
 
     def play(self):
         self.game_state = 1
@@ -223,7 +260,15 @@ class Game:
         self.pause_menu.add_button('MAIN MENU', 'primary', self.set_game_state)
 
     def check_click(self, tile):
-        if tile.id == self.gen_sequence[self.click_count]:
-            self.click_count += 1
-            return True
-        return False
+        print('clicked on tile', tile.id)
+        print('current tile:', self.tiles['sequence'][self.player.click_count])
+        if tile.id == self.tiles['sequence'][self.player.click_count]:
+            self.player.click_count += 1
+            if self.player.click_count == len(self.tiles['sequence']):
+                print('click count is more than sequence -> resetting')
+                self.player.score += 1
+                self.player.click_count = 0
+                self.game_state = 1
+        # if player fails -> game over
+        # else:
+        #     self.game_state = 4
