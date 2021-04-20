@@ -1,15 +1,56 @@
+import datetime
+import json
 import random
-
+import os.path
 from src.components import Tile
 from src.scenes import WelcomeScene, MainMenuScene, ShowScene, PlayScene, GameOverScene
 import pygame as pg
 
 
+class DB:
+    def __init__(self):
+        self.db = os.path.join('data', 'db.json')
+
+    def get_player(self, name):
+        with open(self.db, "r") as db:
+            data = json.load(db)
+            for user in data['users']:
+                if user['name'] == name:
+                    return user
+            return None
+
+    def create_player(self, player):
+
+
+        with open(self.db, "a") as db:
+            data = {'users': []}
+            print(data)
+            data['users'].append({
+                "name": player.name,
+                "high_score": 0,
+                "last_played": player.last_played
+            })
+            db.write(json.dumps(data))
+            db.close()
+
+    def update_player(self, player):
+        with open(self.db, "w") as db:
+            data = json.load(db)
+            for user in data['users']:
+                if user['name'] == player.name:
+                    user['high_score'] = player.high_score
+                    user['last_played'] = player.last_played
+
+            db.write(json.dumps(data))
+            db.close()
+
 class Player:
     def __init__(self):
         self.name = ""
         self.score = 0
+        self.high_score = 0
         self.click_count = 0
+        self.last_played = datetime.datetime.now().timestamp()
 
 
 class Game:
@@ -37,8 +78,9 @@ class Game:
 class Controller:
     def __init__(self):
         self.game = Game()
+        self.db = DB()
         self.scenes = {
-            "welcome": WelcomeScene(self.game),
+            "welcome": WelcomeScene(self.game, self.db),
             "main_menu": MainMenuScene(self.game),
             "show": ShowScene(self.game),
             "play": PlayScene(self.game),
@@ -58,6 +100,7 @@ class Controller:
         if self.scene.done:
             self.scene.reset()
             self.scene = self.scenes[self.scene.next]
+            self.scene.update(now)  # another update to ensure new scene is loaded
 
     def draw(self):
         self.game.screen.fill(self.game.colors['background'])
