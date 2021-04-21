@@ -1,17 +1,14 @@
 import sys
-
-from game import Controller
 import pygame as pg
-
-CAPTION = "Simon"
-SCREEN_SIZE = (560, 560)
+from src.game import Game
+from src import setup
 
 
 def main():
     pg.init()
-    pg.display.set_mode(SCREEN_SIZE)
-    pg.display.set_caption(CAPTION)
-    Controller().main_loop()
+    pg.display.set_mode(setup.SCREEN_SIZE)
+    pg.display.set_caption(setup.CAPTION)
+    Game().main_loop()
     pg.quit()
     sys.exit()
 

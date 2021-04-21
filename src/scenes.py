@@ -1,11 +1,14 @@
-import os
-
 import pygame as pg
+from src import setup, tools
 from src.components import Menu, Font, InputBox, Button
 
 
 class _Scene(object):
-    def __init__(self, game, next_scene: str = None, previous_scene: str  = None):
+    """
+    Základná scéna, obsahujúca potrebné vlastnosti.
+    Všetky ostatné scény musia dediť z tejto scény
+   """
+    def __init__(self, game, next_scene: str = None, previous_scene: str = None):
         self.game = game
         self.next = next_scene
         self.previous = previous_scene
@@ -13,30 +16,37 @@ class _Scene(object):
         self.start_time = None
 
     def reset(self):
-        """Prepare for next time scene has control."""
+        """Pripravenie scény pre ďalšie použitie"""
         self.done = False
         self.start_time = False
 
     def back(self):
-        """If previous scene is specified -> can go back"""
+        """Prejdenie na predchádzajúcu scénu (ak je definovaná)"""
         if self.previous:
             self.next = self.previous
             self.done = True
 
     def handle_event(self, event):
-        """Overwrite in child."""
+        """Spracovanie eventov hry, nutné prepísanie v jednotlivých scénach"""
+        pass
+
+    def draw(self):
+        """Vykreslenie scény, nutné prepísanie v jednotlivých scénach"""
         pass
 
     def update(self, now):
-        """If the start time has not been set run necessary startup."""
+        """
+        Obnovenie scény. Ak štart. čas nebol nastavený,
+        nastaví ho. Ďalšia logika v jednotlivých scénach.
+        """
         if not self.start_time:
             self.start_time = now
 
 
 class WelcomeScene(_Scene):
-    def __init__(self, game, db):
+    """Uvítacia scéna"""
+    def __init__(self, game):
         super().__init__(game, next_scene="main_menu")
-        self.db = db
         self.in_box = InputBox()
         self.error_message = ""
         self.print_error = False
@@ -51,7 +61,6 @@ class WelcomeScene(_Scene):
         validation = self.in_box.validate(min_length=3)
         if validation['success']:
             self.game.player.name = self.in_box.get_value()
-            self.db.create_player(self.game.player)
             self.done = True
         else:
             self.error_message = validation['message']
@@ -63,12 +72,12 @@ class WelcomeScene(_Scene):
 
     def draw(self):
         if self.print_error:
-            font = Font(15, color=(255, 20, 20))
+            font = Font('indiagonal', 'sm', 'red')
             error_text = font.render(self.error_message)
             self.game.screen.blit(error_text, (self.game.width/2 - error_text.get_width()/2, self.game.height-error_text.get_height()-10))
 
         self.in_box.draw(self.game.screen, (self.game.width/2 - self.in_box.width/2, self.game.height/2 - self.in_box.height/2))
-        font = Font(30, color=(252, 186, 3))
+        font = Font('vintage', '2xl', 'yellow')
         welcome_text = font.render("Welcome")
         tw, th = welcome_text.get_size()
         self.game.screen.blit(welcome_text, (self.game.width/2 - welcome_text.get_width()/2, 200))
@@ -81,7 +90,7 @@ class MainMenuScene(_Scene):
         self.menu.add_button("PLAY!", self.play)
         self.menu.add_button("CREDITS", self.credits)
         self.menu.add_button("SETTINGS", self.settings_menu)
-        self.menu.add_button("EXIT", self.exit)
+        self.menu.add_button("EXIT", self.exit, _type="danger")
 
     def handle_event(self, event):
         self.menu.handle_event(event)
@@ -133,12 +142,15 @@ class CreditsScene(_Scene):
         self.back_btn.set_position((self.game.width/2 - self.back_btn.width/2, self.game.height/2 - self.back_btn.height/2))
 
     def draw(self):
-        self.back_btn.draw(self.game.screen)
-        font = Font(10, color=(252, 186, 3))
+        font = Font('vintage', 'xl', 'yellow')
+        credits_text = font.render('CREDITS')
+        font = Font(color='yellow')
         name_text = font.render("Samuel Krupík")
         year_text = font.render("2021")
+        self.game.screen.blit(credits_text, (self.game.width / 2 - credits_text.get_width()/2, 20))
         self.game.screen.blit(name_text, (self.game.width/2 - name_text.get_width()/2, 200))
-        self.game.screen.blit(year_text, (self.game.width/2 - year_text.get_width()/2, 250))
+        self.game.screen.blit(year_text, (self.game.width/2 - year_text.get_width()/2, 230))
+        self.back_btn.draw(self.game.screen)
 
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
@@ -150,7 +162,7 @@ class ShowScene(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="play")
         self.blink = False
-        self.blink_time = 400
+        self.blink_time = setup.TILE_LIGHT_TIME
         self.sequence_index = 0
         self.counter = -1
         self.timer = 0
@@ -214,7 +226,7 @@ class PlayScene(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="show")
         self.timer = 0
-        self.blink_time = 200
+        self.blink_time = setup.TILE_CLICK_LIGHT_TIME
         self.was_clicked = False
         self.locked = False
 
@@ -271,7 +283,7 @@ class PlayScene(_Scene):
 class GameOverScene(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="main_menu")
-        self.sound = pg.mixer.Sound(os.path.join('assets', 'sounds', 'general', 'game_over.wav'))
+        self.sound = pg.mixer.Sound(tools.parse_path(setup.SOUND_PATH, 'general', 'game_over.wav'))
 
     def update(self, now):
         if not self.start_time:
@@ -280,7 +292,7 @@ class GameOverScene(_Scene):
         super().update(now)
 
     def draw(self):
-        font = Font(30, color=(255, 0, 0))
+        font = Font("vintage", "2xl", "red")
         text = font.render("Game over")
         tw, th = text.get_size()
         self.game.screen.blit(text, (self.game.width / 2 - tw / 2, self.game.height / 2 - th / 2))

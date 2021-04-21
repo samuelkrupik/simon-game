@@ -1,7 +1,10 @@
 import json
 import os
+import unicodedata
 from typing import Callable, Tuple
 import pygame as pg
+
+from src import tools, setup
 
 
 class Clickable:
@@ -33,13 +36,13 @@ class Button(Clickable):
             _type: str = "primary"
     ):
         self.bg = pg.image.load(os.path.join("assets", "images", "buttons", f"btn_{_type}.png")).convert_alpha()
-        self.font = Font(18) if _type == 'primary' else Font(18, color=(255, 255, 255))
+        self.font = Font('regular') if _type == 'primary' else Font('regular', color='white')
         self.set_text(text)
         self.pos = pos
         self.type = _type
         self.action = action
         self.params = params
-        self.sound = pg.mixer.Sound(os.path.join("assets", "sounds", "buttons", "button.wav"))
+        self.sound = pg.mixer.Sound(tools.parse_path(setup.SOUND_PATH, "buttons", "button.wav"))
         super().__init__(pos[0], pos[1], self.bg.get_width(), self.bg.get_height())
 
     def draw(self, win):
@@ -62,11 +65,11 @@ class Tile(Clickable):
         self.id = _id
         self.color = color
         self.position = position
-        self.blink_time = 400
+        self.blink_time = setup.TILE_LIGHT_TIME
         self.active = False
-        self.sound = pg.mixer.Sound(os.path.join("assets", "sounds", "tiles", f"{color}.wav"))
-        self.img_off = pg.image.load(os.path.join("assets", "images", "tiles", f"{color}.png")).convert_alpha()
-        self.img_on = pg.image.load(os.path.join("assets", "images", "tiles", f"{color}_on.png")).convert_alpha()
+        self.sound = pg.mixer.Sound(tools.parse_path(setup.SOUND_PATH, "tiles", f"{color}.wav"))
+        self.img_off = pg.image.load(tools.parse_path(setup.IMG_PATH, "tiles", f"{color}.png")).convert_alpha()
+        self.img_on = pg.image.load(tools.parse_path(setup.IMG_PATH, "tiles", f"{color}_on.png")).convert_alpha()
         super().__init__(position[0], position[1], self.img_off.get_width(), self.img_off.get_height())
 
     def get_img(self):
@@ -85,12 +88,16 @@ class Tile(Clickable):
 
 
 class Font:
-    def __init__(self, size, color: Tuple = (0, 0, 0)):
-        self.font = pg.font.Font(os.path.join('assets', 'fonts', 'back_to_1982.ttf'), size)
-        self.color = color
-
-    def size(self, text: str):
-        return self.font.size(text)
+    def __init__(self, _font: str = "regular", size: str = "md", color: str = "black"):
+        """
+        Vytvorí pygame font podla zadaného fontu
+        Je možné použiť iba fonty naimportované v setupe
+        :param _font: Font z pričinka assets/fonts
+        :param size: Veľkost definovaná v setupe
+        :param color: Farba definovaná v setupe
+        """
+        self.font = pg.font.Font(setup.FONTS[_font], setup.FONT_SIZES[size])
+        self.color = setup.COLORS[color]
 
     def render(self, text: str):
         return self.font.render(text, False, self.color)
@@ -100,10 +107,10 @@ class InputBox:
     def __init__(self, pos: Tuple = None):
         self.pos = None
         self.x, self.y = None, None
-        self.bg = pg.image.load(os.path.join('assets', 'images', 'text_input', "text_box.png")).convert_alpha()
+        self.bg = pg.image.load(tools.parse_path(setup.IMG_PATH, 'text_input', "ti_white.png")).convert_alpha()
         self.width, self.height = self.bg.get_size()
         self.value = ""
-        self.font = Font(18)
+        self.font = Font(size='sm')
         self.active = False
         self.timer = 0
         self.cursor_blink_time = 400
@@ -147,7 +154,11 @@ class InputBox:
             elif key[pg.K_RETURN]:
                 on_confirm(*params)
             else:
-                self.value += event.unicode
+                self.value += self.strip_accents(event.unicode)
+
+    @staticmethod
+    def strip_accents(text):
+        return ''.join(c for c in unicodedata.normalize('NFKD', text) if unicodedata.category(c) != 'Mn')
 
     def draw(self, screen, pos: Tuple):
         """
@@ -236,7 +247,7 @@ class Menu:
                     self.last_hovered = None
 
     def draw(self, screen):
-        font = Font(30, color=(252, 186, 3))
+        font = Font('vintage', 'xl', 'yellow')
         text = font.render(self.title)
         tw, th = text.get_size()
         screen.blit(text, (self.width / 2 - tw / 2, self.margin))
