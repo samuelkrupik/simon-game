@@ -1,13 +1,14 @@
 import os
 
 import pygame as pg
-from src.components import Menu, Font, InputBox
+from src.components import Menu, Font, InputBox, Button
 
 
 class _Scene(object):
-    def __init__(self, game, next_scene=None):
+    def __init__(self, game, next_scene: str = None, previous_scene: str  = None):
         self.game = game
         self.next = next_scene
+        self.previous = previous_scene
         self.done = False
         self.start_time = None
 
@@ -15,6 +16,12 @@ class _Scene(object):
         """Prepare for next time scene has control."""
         self.done = False
         self.start_time = False
+
+    def back(self):
+        """If previous scene is specified -> can go back"""
+        if self.previous:
+            self.next = self.previous
+            self.done = True
 
     def handle_event(self, event):
         """Overwrite in child."""
@@ -71,22 +78,23 @@ class MainMenuScene(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="show")
         self.menu = Menu('MAIN MENU')
-        self.menu.add_button("PLAY!", 'primary', self.play)
-        self.menu.add_button("GAME MODE", 'primary', self.game_mode_menu)
-        self.menu.add_button("SETTINGS", 'primary', self.settings_menu)
-        self.menu.add_button("EXIT", 'danger', self.exit)
+        self.menu.add_button("PLAY!", self.play)
+        self.menu.add_button("CREDITS", self.credits)
+        self.menu.add_button("SETTINGS", self.settings_menu)
+        self.menu.add_button("EXIT", self.exit)
 
     def handle_event(self, event):
         self.menu.handle_event(event)
 
     def play(self):
+        self.next = 'show'
         self.done = True
 
     def exit(self):
         self.game.running = False
 
-    def game_mode_menu(self):
-        self.next = "game_mode_menu"
+    def credits(self):
+        self.next = "credits"
         self.done = True
 
     def settings_menu(self):
@@ -95,6 +103,47 @@ class MainMenuScene(_Scene):
 
     def draw(self):
         self.menu.draw(self.game.screen)
+
+
+class SettingsMenuScene(_Scene):
+    def __init__(self, game):
+        super().__init__(game, next_scene="show", previous_scene="main_menu")
+        self.menu = Menu('SETTINGS')
+        self.menu.add_button(self._get_music_text(), self.music)
+        self.menu.add_button("BACK", self.back)
+
+    def handle_event(self, event):
+        self.menu.handle_event(event)
+
+    def draw(self):
+        self.menu.draw(self.game.screen)
+
+    def music(self):
+        self.game.is_music = not self.game.is_music
+        self.menu.buttons[0].set_text(self._get_music_text())
+
+    def _get_music_text(self):
+        return "Music off" if self.game.is_music else "Music on"
+
+
+class CreditsScene(_Scene):
+    def __init__(self, game):
+        super().__init__(game, next_scene="play", previous_scene="main_menu")
+        self.back_btn = Button('BACK', (0,0), action=self.back)
+        self.back_btn.set_position((self.game.width/2 - self.back_btn.width/2, self.game.height/2 - self.back_btn.height/2))
+
+    def draw(self):
+        self.back_btn.draw(self.game.screen)
+        font = Font(10, color=(252, 186, 3))
+        name_text = font.render("Samuel Krupík")
+        year_text = font.render("2021")
+        self.game.screen.blit(name_text, (self.game.width/2 - name_text.get_width()/2, 200))
+        self.game.screen.blit(year_text, (self.game.width/2 - year_text.get_width()/2, 250))
+
+    def handle_event(self, event):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.back_btn.mouse_over(pg.mouse.get_pos()):
+                self.back_btn.click(self.back_btn.action)
 
 
 class ShowScene(_Scene):

@@ -3,7 +3,7 @@ import json
 import random
 import os.path
 from src.components import Tile
-from src.scenes import WelcomeScene, MainMenuScene, ShowScene, PlayScene, GameOverScene
+from src.scenes import WelcomeScene, MainMenuScene, SettingsMenuScene, CreditsScene, ShowScene, PlayScene, GameOverScene
 import pygame as pg
 
 
@@ -69,6 +69,7 @@ class Game:
             Tile(4, "green", (20, 20))
         ]
         self.sequence = []
+        self.is_music = True
         self.running = True
 
     def generate_next(self):
@@ -82,6 +83,8 @@ class Controller:
         self.scenes = {
             "welcome": WelcomeScene(self.game, self.db),
             "main_menu": MainMenuScene(self.game),
+            "settings_menu": SettingsMenuScene(self.game),
+            "credits": CreditsScene(self.game),
             "show": ShowScene(self.game),
             "play": PlayScene(self.game),
             "game_over": GameOverScene(self.game),

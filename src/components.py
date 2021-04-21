@@ -29,13 +29,16 @@ class Button(Clickable):
             self, text: str,
             pos: Tuple,
             action: Callable,
+            params: Tuple = (),
             _type: str = "primary"
     ):
         self.bg = pg.image.load(os.path.join("assets", "images", "buttons", f"btn_{_type}.png")).convert_alpha()
-        font = Font(18) if _type == 'primary' else Font(18, color=(255, 255, 255))
-        self.text = font.render(text)
+        self.font = Font(18) if _type == 'primary' else Font(18, color=(255, 255, 255))
+        self.set_text(text)
         self.pos = pos
+        self.type = _type
         self.action = action
+        self.params = params
         self.sound = pg.mixer.Sound(os.path.join("assets", "sounds", "buttons", "button.wav"))
         super().__init__(pos[0], pos[1], self.bg.get_width(), self.bg.get_height())
 
@@ -49,6 +52,9 @@ class Button(Clickable):
     def set_position(self, pos):
         self.pos = pos
         self.x, self.y = pos
+
+    def set_text(self, text):
+        self.text = self.font.render(text)
 
 
 class Tile(Clickable):
@@ -197,22 +203,23 @@ class Menu:
         self.buttons_height = 0
         self.last_hovered = None
 
-    def add_button(self, text: str, _type: str, action: Callable):
+    def add_button(self, text: str, action: Callable, params: Tuple = (), _type: str = 'primary'):
         # create button - set position to origin
-        self.buttons.append(Button(text, (0, 0), action, _type))
+        self.buttons.append(Button(text, (0, 0), action, params, _type))
         # recalculate all positions
         self._recalculate_button_positions()
 
     def _recalculate_button_positions(self):
         self.buttons_height += self.buttons[0].height + self.margin
-        print(self.buttons_height)
-        for i in range(len(self.buttons)):
-            self.buttons[i].set_position(
+        i = 0
+        for button in self.buttons:
+            button.set_position(
                 (
-                    self.width / 2 - self.buttons[i].width / 2,
-                    self.height / 2 - self.buttons_height / 2 + ((self.buttons[i].height + self.margin) * i)
+                    self.width / 2 - button.width / 2,
+                    self.height / 2 - self.buttons_height / 2 + ((button.height + self.margin) * i)
                 )
             )
+            i += 1
 
     def handle_event(self, event):
         mouse_pos = pg.mouse.get_pos()
