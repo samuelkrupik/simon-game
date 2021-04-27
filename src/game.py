@@ -38,7 +38,7 @@ class Game:
         Vygeneruje ďalšie náhodné číslo do sekvencie
         Čísla od 1 do 4 súhlasia s id jednotlivých tiles
         """
-        self.sequence.append(random.randrange(1, 4))
+        self.sequence.append(random.randint(1, 4))
 
     def attach_scenes(self):
         """

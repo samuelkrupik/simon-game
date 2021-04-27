@@ -209,6 +209,10 @@ class ShowScene(_Scene):
             return
 
     def draw(self):
+        font = Font(color="light")
+        text = font.render("Simon's move")
+        tw, th = text.get_size()
+        self.game.screen.blit(text, (self.game.width / 2 - tw / 2, self.game.height / 2 - th / 2))
         for tile in self.game.tiles:
             self.game.screen.blit(tile.get_img(), tile.position)
             if self.can_play_sound:
@@ -271,6 +275,10 @@ class PlayScene(_Scene):
                 self.done = True
 
     def draw(self):
+        font = Font(color="white")
+        text = font.render("Your move")
+        tw, th = text.get_size()
+        self.game.screen.blit(text, (self.game.width / 2 - tw / 2, self.game.height / 2 - th / 2))
         for tile in self.game.tiles:
             self.game.screen.blit(tile.get_img(), tile.position)
 
