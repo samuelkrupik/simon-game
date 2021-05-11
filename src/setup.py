@@ -1,8 +1,4 @@
-import pygame as pg
 from src import tools
-
-# Inicializovanie knižnice pygame
-pg.init()
 
 # Nastavenie veľkosti, názvu okna
 # definovanie obnovovacej frekvencie
@@ -26,6 +22,7 @@ FONT_SIZES = {
     "lg": 25,
     "xl": 35,
     "2xl": 50,
+    "3xl": 75
 }
 
 # Definovanie farieb
@@ -48,12 +45,18 @@ TILE_LIGHT_TIME = 300
 # dlho bude dlaždica po stlačení svietiť
 TILE_CLICK_LIGHT_TIME = 200
 
+# Čas v milisekundách pre všeobecné elementy
+# Napr. blikanie kurzora alebo textu na obrazovke
+BLINK_TIME = 500
+
 # Pridanie nových scén do hry TU
 # List musí obsahovať názov scény v "snake_case"
 # Samotná inicializácia scén prebieha v triede Game
 SCENES = [
     "welcome",
     "main_menu",
+    "profile",
+    "stats",
     "settings_menu",
     "credits",
     "show",
@@ -63,3 +66,6 @@ SCENES = [
 
 # Začiatočná scéna
 START_SCENE = "welcome"
+
+# Adresa servera
+SERVER_URL = 'https://simon-backend.azurewebsites.net'

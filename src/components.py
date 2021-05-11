@@ -1,6 +1,5 @@
 import json
 import os
-import unicodedata
 from typing import Callable, Tuple
 import pygame as pg
 
@@ -99,9 +98,15 @@ class Font:
         self.font = pg.font.Font(setup.FONTS[_font], setup.FONT_SIZES[size])
         self.color = setup.COLORS[color]
 
-    def render(self, text: str):
-        return self.font.render(text, False, self.color)
+    def render(self, text: str, multiline: bool = False):
+        if not multiline:
+            return self.font.render(text, False, self.color)
 
+    def draw(self, text: str, screen, pos: Tuple, multiline: bool = False):
+        if multiline:
+            rows = tools.split_multiline(text)
+            for i, row in enumerate(rows):
+                tw, th = self.font.size(row)
 
 class InputBox:
     def __init__(self, pos: Tuple = None):
@@ -113,7 +118,6 @@ class InputBox:
         self.font = Font(size='sm')
         self.active = False
         self.timer = 0
-        self.cursor_blink_time = 400
         self.cursor_visible = False
         self._set_pos(pos) if pos else None
 
@@ -136,7 +140,7 @@ class InputBox:
         Obnovenie textboxu - ak je textbox aktívny skontroluje
         a prípadne obnoví časovač blikania kurzora
         """
-        if self.active and now - self.cursor_blink_time > self.timer:
+        if self.active and now - setup.BLINK_TIME > self.timer:
             self.cursor_visible = not self.cursor_visible
             self.timer = now
 
@@ -154,11 +158,7 @@ class InputBox:
             elif key[pg.K_RETURN]:
                 on_confirm(*params)
             else:
-                self.value += self.strip_accents(event.unicode)
-
-    @staticmethod
-    def strip_accents(text):
-        return ''.join(c for c in unicodedata.normalize('NFKD', text) if unicodedata.category(c) != 'Mn')
+                self.value += tools.strip_accents(event.unicode)
 
     def draw(self, screen, pos: Tuple):
         """

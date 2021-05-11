@@ -2,6 +2,10 @@ import pygame as pg
 from src import setup, tools
 from src.components import Menu, Font, InputBox, Button
 
+"""
+Scény sa registrujú v src.setup v liste SCENES
+"""
+
 
 class _Scene(object):
     """
@@ -60,7 +64,7 @@ class WelcomeScene(_Scene):
     def start_or_error(self):
         validation = self.in_box.validate(min_length=3)
         if validation['success']:
-            self.game.player.name = self.in_box.get_value()
+            self.game.player.create_user(self.in_box.get_value())
             self.done = True
         else:
             self.error_message = validation['message']
@@ -79,7 +83,6 @@ class WelcomeScene(_Scene):
         self.in_box.draw(self.game.screen, (self.game.width/2 - self.in_box.width/2, self.game.height/2 - self.in_box.height/2))
         font = Font('vintage', '2xl', 'yellow')
         welcome_text = font.render("Welcome")
-        tw, th = welcome_text.get_size()
         self.game.screen.blit(welcome_text, (self.game.width/2 - welcome_text.get_width()/2, 200))
 
 
@@ -88,8 +91,10 @@ class MainMenuScene(_Scene):
         super().__init__(game, next_scene="show")
         self.menu = Menu('MAIN MENU')
         self.menu.add_button("PLAY!", self.play)
+        self.menu.add_button("PROFILE", self.profile)
+        self.menu.add_button("STATS", self.stats)
+        self.menu.add_button("SETTINGS", self.settings)
         self.menu.add_button("CREDITS", self.credits)
-        self.menu.add_button("SETTINGS", self.settings_menu)
         self.menu.add_button("EXIT", self.exit, _type="danger")
 
     def handle_event(self, event):
@@ -99,19 +104,51 @@ class MainMenuScene(_Scene):
         self.next = 'show'
         self.done = True
 
-    def exit(self):
-        self.game.running = False
+    def profile(self):
+        self.next = 'profile'
+        self.done = True
+
+    def stats(self):
+        self.next = 'stats'
+        self.done = True
+
+    def settings(self):
+        self.next = "settings_menu"
+        self.done = True
 
     def credits(self):
         self.next = "credits"
         self.done = True
 
-    def settings_menu(self):
-        self.next = "settings_menu"
-        self.done = True
+    def exit(self):
+        self.game.running = False
 
     def draw(self):
         self.menu.draw(self.game.screen)
+
+
+# TODO: Zobraziť tabuľku dosiahnutých top výsledkov, highscore a meno
+class ProfileScene(_Scene):
+    def __init__(self, game):
+        super().__init__(game, next_scene="main_menu")
+
+    def handle_event(self, event):
+        pass
+
+    def draw(self):
+        pass
+
+
+# TODO: Zobraziť tabuľku najlepších výsledkov všetkých hráčov
+class StatsScene(_Scene):
+    def __init__(self, game):
+        super().__init__(game, next_scene="main_menu")
+
+    def handle_event(self, event):
+        pass
+
+    def draw(self):
+        pass
 
 
 class SettingsMenuScene(_Scene):
@@ -292,19 +329,47 @@ class GameOverScene(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="main_menu")
         self.sound = pg.mixer.Sound(tools.parse_path(setup.SOUND_PATH, 'general', 'game_over.wav'))
+        self.is_highscore = False
+        self.continue_text_visible = False
+        self.timer = 0
 
     def update(self, now):
         if not self.start_time:
+            self.is_highscore = self.game.player.create_score()
             self.game.sequence = []
             self.sound.play()
+        if now - setup.BLINK_TIME > self.timer:
+            self.continue_text_visible = not self.continue_text_visible
+            self.timer = now
         super().update(now)
 
     def draw(self):
+        if self.is_highscore:
+            font = Font("regular", "lg", "yellow")
+            text = font.render("Wooah, new high score!")
+            tw, th = text.get_size()
+            self.game.screen.blit(text, (self.game.width / 2 - tw / 2, 160))
+
+        font = Font("regular","xl", "light")
+        text = font.render(f"Your score: {self.game.player.score}")
+        tw, th = text.get_size()
+        self.game.screen.blit(text, (self.game.width / 2 - tw / 2, 200))
+
         font = Font("vintage", "2xl", "red")
         text = font.render("Game over")
         tw, th = text.get_size()
         self.game.screen.blit(text, (self.game.width / 2 - tw / 2, self.game.height / 2 - th / 2))
 
+        if self.continue_text_visible:
+            font = Font("regular", "md", "light")
+            text = font.render("[click anywhere to continue]")
+            tw, th = text.get_size()
+            self.game.screen.blit(text, (self.game.width / 2 - tw / 2, 350))
+
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN or event.type == pg.KEYDOWN:
             self.done = True
+
+    def reset(self):
+        super().reset()
+        self.game.player.score = 0

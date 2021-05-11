@@ -4,15 +4,64 @@ import importlib
 import pygame as pg
 from src import setup, tools
 from src.components import Tile
+import requests as req
+
+
+class Api:
+    @staticmethod
+    def return_response(response:req.Response):
+        if response.status_code == 200 or response.status_code == 201:
+            return response.json(), response.status_code
+        else:
+            return False, response.status_code
+
+    @staticmethod
+    def get(endpoint: str):
+        endpoint = endpoint.strip('/')
+        res = req.get(setup.SERVER_URL + '/' + endpoint)
+        return Api.return_response(res)
+
+    @staticmethod
+    def post(endpoint: str, data: dict):
+        endpoint = endpoint.strip('/')
+        res = req.post(setup.SERVER_URL + '/' + endpoint, data=data)
+        return Api.return_response(res)
 
 
 class Player:
     def __init__(self):
-        self.name = ""
-        self.score = 0
+        self._id = 0
+        self.name = 'Player'
         self.high_score = 0
+        self.score = 0
+        self.scores = []
         self.click_count = 0
-        self.last_played = datetime.datetime.now().timestamp()
+
+    def create_user(self, name):
+        """Vytvorí nového používatela alebo vráti už existujúceho"""
+        res, status = Api.post('users', {'name': name})
+        if not res:
+            return False
+        data = res['data']
+        self._id = data['id']
+        self.name = data['name']
+        self.high_score = data['high_score']
+        self.get_user_scores()
+
+    def get_user_scores(self):
+        """Získa top 10 dosiahnutých skóre pre daného používateľa"""
+        res, status = Api.get(f'user/{self._id}/top-scores')
+        if res:
+            self.scores = res['data']
+
+    def create_score(self):
+        """Pošle skóre na server a vráti info či je nové skóre najlepšie"""
+        res, code = Api.post('scores', {'score': self.score, 'user_id': self._id})
+        if self.score > self.high_score:
+            self.high_score = self.score
+            return True
+        else:
+            return False
 
 
 class Game:
@@ -31,7 +80,7 @@ class Game:
         self.is_music = True
         self.running = True
         self.scenes = self.attach_scenes()
-        self.scene = self.scenes[setup.START_SCENE] if self.scenes else None
+        self.scene = self.scenes[setup.START_SCENE]
 
     def generate_next(self):
         """
@@ -99,40 +148,3 @@ class Game:
             self.draw()
             pg.display.update()
             self.clock.tick(setup.FPS)
-
-
-# class DB:
-#     def __init__(self):
-#         self.db = os.path.join('data', 'db.json')
-#
-#     def get_player(self, name):
-#         with open(self.db, "r") as db:
-#             data = json.load(db)
-#             for user in data['users']:
-#                 if user['name'] == name:
-#                     return user
-#             return None
-#
-#     def create_player(self, player):
-#
-#         with open(self.db, "a") as db:
-#             data = {'users': []}
-#             print(data)
-#             data['users'].append({
-#                 "name": player.name,
-#                 "high_score": 0,
-#                 "last_played": player.last_played
-#             })
-#             db.write(json.dumps(data))
-#             db.close()
-#
-#     def update_player(self, player):
-#         with open(self.db, "w") as db:
-#             data = json.load(db)
-#             for user in data['users']:
-#                 if user['name'] == player.name:
-#                     user['high_score'] = player.high_score
-#                     user['last_played'] = player.last_played
-#
-#             db.write(json.dumps(data))
-#             db.close()
