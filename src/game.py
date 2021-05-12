@@ -1,4 +1,3 @@
-import datetime
 import random
 import importlib
 import pygame as pg
@@ -9,7 +8,7 @@ import requests as req
 
 class Api:
     @staticmethod
-    def return_response(response:req.Response):
+    def return_response(response: req.Response):
         if response.status_code == 200 or response.status_code == 201:
             return response.json(), response.status_code
         else:
@@ -36,17 +35,21 @@ class Player:
         self.score = 0
         self.scores = []
         self.click_count = 0
+        self.is_connected = tools.check_internet()
 
     def create_user(self, name):
-        """Vytvorí nového používatela alebo vráti už existujúceho"""
+        """
+        Vytvorí nového používatela alebo vráti už existujúceho.
+        V prípade že sa požiadavka nevykoná, vráti
+        """
         res, status = Api.post('users', {'name': name})
         if not res:
+            self.name = name
             return False
         data = res['data']
         self._id = data['id']
         self.name = data['name']
         self.high_score = data['high_score']
-        self.get_user_scores()
 
     def get_user_scores(self):
         """Získa top 10 dosiahnutých skóre pre daného používateľa"""
@@ -56,7 +59,7 @@ class Player:
 
     def create_score(self):
         """Pošle skóre na server a vráti info či je nové skóre najlepšie"""
-        res, code = Api.post('scores', {'score': self.score, 'user_id': self._id})
+        Api.post('scores', {'score': self.score, 'user_id': self._id})
         if self.score > self.high_score:
             self.high_score = self.score
             return True
@@ -81,6 +84,13 @@ class Game:
         self.running = True
         self.scenes = self.attach_scenes()
         self.scene = self.scenes[setup.START_SCENE]
+        self.top_scores = []
+
+    def get_top_scores(self):
+        """Získa top 10 najlepších skóre zo všetkých hráčov"""
+        res, status = Api.get('top-scores')
+        if res:
+            self.top_scores = res['data']
 
     def generate_next(self):
         """
@@ -98,7 +108,7 @@ class Game:
             scenes = {}
             scene_module = importlib.import_module("src.scenes")
             for scene in setup.SCENES:
-                class_name = tools.snake_to_pascal(scene) + 'Scene'
+                class_name = tools.snake_to_pascal(scene)
                 scene_class = getattr(scene_module, class_name)
                 scenes[scene] = scene_class(self)
             return scenes

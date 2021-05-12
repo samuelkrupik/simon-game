@@ -5,6 +5,7 @@ from src import setup
 
 
 def main():
+    pg.mixer.init()
     pg.init()
     pg.display.set_mode(setup.SCREEN_SIZE)
     pg.display.set_caption(setup.CAPTION)

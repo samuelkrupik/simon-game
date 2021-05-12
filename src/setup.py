@@ -55,9 +55,8 @@ BLINK_TIME = 500
 SCENES = [
     "welcome",
     "main_menu",
-    "profile",
+    "my_stats",
     "stats",
-    "settings_menu",
     "credits",
     "show",
     "play",

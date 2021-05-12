@@ -1,5 +1,8 @@
 import os
+import time
 import unicodedata
+from datetime import datetime, timedelta
+import requests
 
 
 def parse_path(path: str, *paths):
@@ -41,3 +44,46 @@ def split_multiline(text: str):
     list s jednotlivými riadkami. (Podľa znaku '\n')
     """
     return list(filter(lambda x: len(x) > 0, text.split("\n")))
+
+
+def check_internet():
+    """Detekuje či je používateľ pripojený k internetu"""
+    connection = None
+    try:
+        r = requests.head("https://google.com", timeout=5)
+        r.raise_for_status()
+        print("Internet connection detected.")
+        connection = True
+    except:
+        print("Internet connection not detected.")
+        connection = False
+    finally:
+        return connection
+
+
+def get_utc_offset():
+    """Vráti hodnotu reprezentujúcu posun v hodínách od UTC času"""
+    utc = time.gmtime()
+    local = time.localtime()
+    return local.tm_hour - utc.tm_hour
+
+
+def str_to_date(datestr: str, _format: str = "%a, %d %b %Y %H:%M:%S -%f"):
+    """
+    Skonvertuje text na datetime objekt so správnym posunom času
+    V prípade ak sa nepodarí dátum skonvertovať, vráti aktuálny dátum
+    """
+    offset = get_utc_offset()
+    date = None
+    try:
+        date = datetime.strptime(datestr, _format) + timedelta(hours=offset)
+    except:
+        date = datetime.now()
+    finally:
+        return date
+
+
+def format_date(datestr: str):
+    """Formátuje dátum z reťazca"""
+    date = str_to_date(datestr)
+    return date.strftime('%d %b %Y')

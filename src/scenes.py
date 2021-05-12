@@ -1,6 +1,6 @@
 import pygame as pg
 from src import setup, tools
-from src.components import Menu, Font, InputBox, Button
+from src.components import Menu, Font, InputBox, Button, Table
 
 """
 Scény sa registrujú v src.setup v liste SCENES
@@ -12,6 +12,7 @@ class _Scene(object):
     Základná scéna, obsahujúca potrebné vlastnosti.
     Všetky ostatné scény musia dediť z tejto scény
    """
+
     def __init__(self, game, next_scene: str = None, previous_scene: str = None):
         self.game = game
         self.next = next_scene
@@ -47,53 +48,83 @@ class _Scene(object):
             self.start_time = now
 
 
-class WelcomeScene(_Scene):
+class Welcome(_Scene):
     """Uvítacia scéna"""
+
     def __init__(self, game):
         super().__init__(game, next_scene="main_menu")
-        self.in_box = InputBox()
-        self.error_message = ""
-        self.print_error = False
+        self.in_box = InputBox(placeholder="Enter username")
+        self.validation_message = ""
+        self.start_btn = Button("Start", (0, 0), self.start_or_error)
+        self.start_btn.set_position((self.game.width / 2 - self.start_btn.width / 2, self.game.height / 2 + 30))
+        self.reconnect_btn = Button("Retry", (0, 0), self.reconnect, _type="danger")
+        self.reconnect_btn.set_position(
+            (self.game.width / 2 - self.reconnect_btn.width / 2, self.game.height / 2 + 30))
 
     def handle_event(self, event):
-        if event.type == pg.MOUSEBUTTONDOWN:
-            self.in_box.activate()
-        if event.type == pg.KEYDOWN:
-            self.in_box.input(event, on_confirm=self.start_or_error)
+        if self.game.player.is_connected:
+            self.start_btn.handle_event(event)
+            if event.type == pg.MOUSEBUTTONDOWN:
+                self.in_box.activate()
+            if event.type == pg.KEYDOWN:
+                self.in_box.input(event, on_confirm=self.start_or_error)
+        else:
+            self.reconnect_btn.handle_event(event)
 
     def start_or_error(self):
-        validation = self.in_box.validate(min_length=3)
+        validation = self.in_box.validate(min_length=3, max_length=10)
         if validation['success']:
             self.game.player.create_user(self.in_box.get_value())
             self.done = True
         else:
-            self.error_message = validation['message']
-            self.print_error = True
+            self.validation_message = validation['message']
+
+    def reconnect(self):
+        self.game.player.is_connected = tools.check_internet()
 
     def update(self, now):
         super().update(now)
         self.in_box.update(now)
 
     def draw(self):
-        if self.print_error:
-            font = Font('indiagonal', 'sm', 'red')
-            error_text = font.render(self.error_message)
-            self.game.screen.blit(error_text, (self.game.width/2 - error_text.get_width()/2, self.game.height-error_text.get_height()-10))
+        err_font = Font('regular', 'sm', 'red')
 
-        self.in_box.draw(self.game.screen, (self.game.width/2 - self.in_box.width/2, self.game.height/2 - self.in_box.height/2))
+        # Uvítací text
         font = Font('vintage', '2xl', 'yellow')
-        welcome_text = font.render("Welcome")
-        self.game.screen.blit(welcome_text, (self.game.width/2 - welcome_text.get_width()/2, 200))
+        welcome_text = font.render("Welcome!")
+        self.game.screen.blit(welcome_text, (
+            self.game.width / 2 - welcome_text.get_width() / 2, self.game.height / 2 - welcome_text.get_height() - 20))
+
+        # Chyba zadaného mena
+        if self.validation_message:
+            v_text = err_font.render(self.validation_message)
+            self.game.screen.blit(v_text, (
+                self.game.width / 2 - v_text.get_width() / 2, self.game.height * 2 / 3 - 20))
+
+        # Zobrazí input box ak je user pripojený, ak nie, zobrazí error
+        if self.game.player.is_connected:
+            self.in_box.draw(
+                self.game.screen,
+                (self.game.width / 2 - self.in_box.width / 2, self.game.height / 2 - self.in_box.height / 2)
+            )
+            self.start_btn.draw(self.game.screen)
+        else:
+            c_text = err_font.render("You are not connected to internet.")
+            c2_text = err_font.render("Please, try to reconnect.")
+            self.game.screen.blit(c_text, (
+                self.game.width / 2 - c_text.get_width() / 2, self.game.height / 2 - c_text.get_height()))
+            self.game.screen.blit(c2_text, (
+                self.game.width / 2 - c2_text.get_width() / 2, self.game.height / 2))
+            self.reconnect_btn.draw(self.game.screen)
 
 
-class MainMenuScene(_Scene):
+class MainMenu(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="show")
         self.menu = Menu('MAIN MENU')
         self.menu.add_button("PLAY!", self.play)
-        self.menu.add_button("PROFILE", self.profile)
+        self.menu.add_button("MY STATS", self.my_stats)
         self.menu.add_button("STATS", self.stats)
-        self.menu.add_button("SETTINGS", self.settings)
         self.menu.add_button("CREDITS", self.credits)
         self.menu.add_button("EXIT", self.exit, _type="danger")
 
@@ -104,16 +135,12 @@ class MainMenuScene(_Scene):
         self.next = 'show'
         self.done = True
 
-    def profile(self):
-        self.next = 'profile'
+    def my_stats(self):
+        self.next = 'my_stats'
         self.done = True
 
     def stats(self):
         self.next = 'stats'
-        self.done = True
-
-    def settings(self):
-        self.next = "settings_menu"
         self.done = True
 
     def credits(self):
@@ -127,75 +154,95 @@ class MainMenuScene(_Scene):
         self.menu.draw(self.game.screen)
 
 
-# TODO: Zobraziť tabuľku dosiahnutých top výsledkov, highscore a meno
-class ProfileScene(_Scene):
+class MyStats(_Scene):
     def __init__(self, game):
-        super().__init__(game, next_scene="main_menu")
+        super().__init__(game, next_scene="main_menu", previous_scene="main_menu")
+        self.table = Table("Your scores", self.game.player.scores)
+        self.back_btn = Button('BACK', (0, 0), self.back)
+        self.back_btn.set_position((self.game.width / 2 - self.back_btn.width / 2,
+                                    self.game.height - self.back_btn.height * 2))
 
     def handle_event(self, event):
-        pass
+        self.back_btn.handle_event(event)
+
+    def update(self, now):
+        if not self.start_time:
+            self.game.player.get_user_scores()
+            self.table.data = self.game.player.scores
+            self.table.add_column('Score', 'score')
+            self.table.add_column('Date', 'created_at', tools.format_date)
+        super().update(now)
 
     def draw(self):
-        pass
+        self.table.draw(self.game.screen)
+        self.back_btn.draw(self.game.screen)
+
+    def reset(self):
+        self.table.table = []
+        super().reset()
 
 
-# TODO: Zobraziť tabuľku najlepších výsledkov všetkých hráčov
-class StatsScene(_Scene):
+class Stats(_Scene):
     def __init__(self, game):
-        super().__init__(game, next_scene="main_menu")
+        super().__init__(game, next_scene="main_menu", previous_scene="main_menu")
+        self.table = Table("Top scores", self.game.player.scores)
+        self.back_btn = Button('BACK', (0, 0), self.back)
+        self.back_btn.set_position((self.game.width / 2 - self.back_btn.width / 2,
+                                    self.game.height - self.back_btn.height * 2))
 
     def handle_event(self, event):
-        pass
+        self.back_btn.handle_event(event)
+
+    def update(self, now):
+        if not self.start_time:
+            self.game.get_top_scores()
+            self.table.data = self.game.top_scores
+            self.table.add_column('Score', 'score')
+            self.table.add_column('Player', 'user')
+            self.table.add_column('Date', 'created_at', tools.format_date)
+        super().update(now)
 
     def draw(self):
-        pass
+        self.table.draw(self.game.screen)
+        self.back_btn.draw(self.game.screen)
+
+    def reset(self):
+        self.table.table = []
+        super().reset()
 
 
-class SettingsMenuScene(_Scene):
-    def __init__(self, game):
-        super().__init__(game, next_scene="show", previous_scene="main_menu")
-        self.menu = Menu('SETTINGS')
-        self.menu.add_button(self._get_music_text(), self.music)
-        self.menu.add_button("BACK", self.back)
-
-    def handle_event(self, event):
-        self.menu.handle_event(event)
-
-    def draw(self):
-        self.menu.draw(self.game.screen)
-
-    def music(self):
-        self.game.is_music = not self.game.is_music
-        self.menu.buttons[0].set_text(self._get_music_text())
-
-    def _get_music_text(self):
-        return "Music off" if self.game.is_music else "Music on"
-
-
-class CreditsScene(_Scene):
+class Credits(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="play", previous_scene="main_menu")
-        self.back_btn = Button('BACK', (0,0), action=self.back)
-        self.back_btn.set_position((self.game.width/2 - self.back_btn.width/2, self.game.height/2 - self.back_btn.height/2))
+        self.back_btn = Button('BACK', (0, 0), action=self.back)
+        self.back_btn.set_position(
+            (self.game.width / 2 - self.back_btn.width / 2, self.game.height - self.back_btn.height * 2))
+        self.title_font = Font('vintage', 'xl', 'yellow')
+        self.text_font = Font(color='light')
+        self.py_img = pg.image.load(tools.parse_path(setup.IMG_PATH, "others", "python.png")).convert_alpha()
 
     def draw(self):
-        font = Font('vintage', 'xl', 'yellow')
-        credits_text = font.render('CREDITS')
-        font = Font(color='yellow')
-        name_text = font.render("Samuel Krupík")
-        year_text = font.render("2021")
-        self.game.screen.blit(credits_text, (self.game.width / 2 - credits_text.get_width()/2, 20))
-        self.game.screen.blit(name_text, (self.game.width/2 - name_text.get_width()/2, 200))
-        self.game.screen.blit(year_text, (self.game.width/2 - year_text.get_width()/2, 230))
+        credits_text = self.title_font.render('CREDITS')
+        self.game.screen.blit(credits_text, (self.game.width / 2 - credits_text.get_width() / 2, 20))
+        self.game.screen.blit(self.py_img,
+                              (self.game.width / 2 - self.py_img.get_width() / 2, 20 + credits_text.get_height()))
+
+        text = "Sounds: www.freesound.org\n" \
+               "Author: Samuel Krupík\n" \
+               "Year: 2021"
+
+        texts = tools.split_multiline(text)
+        for i, t in enumerate(texts):
+            r = self.text_font.render(t)
+            rw, rh = r.get_size()
+            self.game.screen.blit(r, (self.game.width / 2 - rw / 2, self.game.height / 2 + 20 + rh * 1.5 * i))
         self.back_btn.draw(self.game.screen)
 
     def handle_event(self, event):
-        if event.type == pg.MOUSEBUTTONDOWN:
-            if self.back_btn.mouse_over(pg.mouse.get_pos()):
-                self.back_btn.click(self.back_btn.action)
+        self.back_btn.handle_event(event)
 
 
-class ShowScene(_Scene):
+class Show(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="play")
         self.blink = False
@@ -206,41 +253,35 @@ class ShowScene(_Scene):
         self.can_play_sound = False
 
     def update(self, now):
-        # update parent
         super().update(now)
 
-        # ensure sound is played only once per blink
+        # kontrola púštania zvuku (reset pri každom update aby sa pustil len raz)
         self.can_play_sound = False
 
-        # first update
-        # reset timer, generate new number
+        # prvý update -> generuj nové číslo
         if self.timer == 0:
             self.timer = now
             self.game.generate_next()
 
-        # blink time passed
-        # reset timer, increase count, reverse blinking
+        # prešiel cyklus bliknutia -> reset
         if now - self.blink_time > self.timer:
             self.timer = now
             self.counter += 1
             self.blink = not self.blink
-            # counter is even
-            # increase current sequence index
+            # ak je počítadlo párne -> pustí zvuk (inak by hral dvakrat)
             if self.counter % 2 == 0:
                 self.can_play_sound = True
                 if self.counter >= 2:
                     self.sequence_index += 1
 
-        # loop through tiles
-        # ensure current sequence index exists in sequence
-        # set active tile
+        # prechádzanie a nastavenie aktívnej Tile
         for tile in self.game.tiles:
             tile.active = False
             if self.sequence_index < len(self.game.sequence):
                 if self.blink and tile.id == self.game.sequence[self.sequence_index]:
                     tile.active = True
 
-        # last sequence index -> scene done
+        # posledný -> koniec
         if self.sequence_index == len(self.game.sequence):
             self.done = True
             return
@@ -263,7 +304,7 @@ class ShowScene(_Scene):
         self.sequence_index = 0
 
 
-class PlayScene(_Scene):
+class Play(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="show")
         self.timer = 0
@@ -284,30 +325,28 @@ class PlayScene(_Scene):
 
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
-            # if last item from sequence was clicked -> do not listen for clicks
+            # kliknutie na Tile s posledným indexom v sekvencii -> nepočuvaj dalšie kliknutia
             if self.locked:
                 return
-            # loop through and deactivate all tiles
+            # deaktivuje všetky Tiles okrem kliknutej
             for tile in self.game.tiles:
                 tile.active = False
                 self.was_clicked = True
-                # mouse was hovering over tile
-                # handle click, set to active
                 if tile.mouse_over(pg.mouse.get_pos()):
                     tile.active = True
                     tile.click(self.tile_clicked, params=(tile,))
 
     def update(self, now):
-        # update parent
         super().update(now)
-        # if tile was clicked in handle event method set timer
+        # kliknutie na Tile -> spusti časovač
         if self.was_clicked:
             self.timer = now
             self.was_clicked = False
-        # reset active state after blink time
+        # po bliknutí resetuje aktívny stav
         if now - self.blink_time > self.timer:
             for tile in self.game.tiles:
                 tile.active = False
+            # posledný -> koniec
             if self.locked:
                 self.done = True
 
@@ -325,7 +364,7 @@ class PlayScene(_Scene):
         self.locked = False
 
 
-class GameOverScene(_Scene):
+class GameOver(_Scene):
     def __init__(self, game):
         super().__init__(game, next_scene="main_menu")
         self.sound = pg.mixer.Sound(tools.parse_path(setup.SOUND_PATH, 'general', 'game_over.wav'))
@@ -350,7 +389,7 @@ class GameOverScene(_Scene):
             tw, th = text.get_size()
             self.game.screen.blit(text, (self.game.width / 2 - tw / 2, 160))
 
-        font = Font("regular","xl", "light")
+        font = Font("regular", "xl", "light")
         text = font.render(f"Your score: {self.game.player.score}")
         tw, th = text.get_size()
         self.game.screen.blit(text, (self.game.width / 2 - tw / 2, 200))
@@ -373,3 +412,4 @@ class GameOverScene(_Scene):
     def reset(self):
         super().reset()
         self.game.player.score = 0
+        self.game.player.get_user_scores()
