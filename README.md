@@ -5,17 +5,17 @@
 - [Pip](https://pip.pypa.io/en/stable/)
 
 ## Installation
-1. Clone the repo
+**1. Clone the repo**
 ```bash
 git clone https://github.com/samuelkrupik/simon-game.git
 ```
 ---
-2. Cd into the directory
+**2. Cd into the directory**
 ```bash
 cd simon-game
 ```
 ---
-3. Make virtual environment
+**3. Make virtual environment**
 - On Windows
 ```bash
 py -m venv env
@@ -25,7 +25,7 @@ py -m venv env
 python3 -m venv env
 ```
 ---
-4. Activate virtual environment
+**4. Activate virtual environment**
 - On Windows
 ```bash
 source env/bin/activate.bat
@@ -35,12 +35,12 @@ source env/bin/activate.bat
 .\env\Scripts\activate
 ```
 ---
-5. Install dependencies
+**5. Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 ---
-6. Run simon
+**6. Run simon**
 - On Windows
 ```bash
 py main.py
